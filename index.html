@@ -70,12 +70,16 @@ input[type="number"], input[type="range"] {
   border: none;
   cursor: pointer;
   opacity: 0.4;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.switch button.active {
+  opacity: 1;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .long { background: #00c853; color: #fff; }
 .short { background: #d50000; color: #fff; }
-.active { opacity: 1; }
 
 .hint {
   font-size: 13px;
@@ -151,16 +155,19 @@ const output = $("output");
 const slHint = $("slHint");
 const tpHint = $("tpHint");
 
-$("longBtn").onclick = () => setDirection("long");
-$("shortBtn").onclick = () => setDirection("short");
+const longBtn = $("longBtn");
+const shortBtn = $("shortBtn");
+
+longBtn.onclick = () => setDirection("long");
+shortBtn.onclick = () => setDirection("short");
 
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
 
 function updateDirectionUI() {
-  $("longBtn").classList.toggle("active", direction === "long");
-  $("shortBtn").classList.toggle("active", direction === "short");
+  longBtn.classList.toggle("active", direction === "long");
+  shortBtn.classList.toggle("active", direction === "short");
 }
 
 function setDirection(dir) {
@@ -230,6 +237,7 @@ function calculate() {
 
 /* INIT */
 updateDirectionUI();
+calculate(); // сразу показать расчёт при загрузке
 </script>
 
 </body>
