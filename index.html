@@ -3,16 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Bybit Risk Calculator</title>
 
-<!-- PWA Manifest -->
 <link rel="manifest" href="manifest.json">
-
-<!-- iOS PWA support -->
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#00c853">
 
 <style>
 * { box-sizing: border-box; }
@@ -143,99 +137,42 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
 
-let direction = "long"; // DEFAULT
+let direction = "long";
 
 const $ = id => document.getElementById(id);
-
-const capital = $("capital");
-const risk = $("risk");
-const entry = $("entry");
-const stop = $("stop");
-const tp = $("tp");
-const leverage = $("leverage");
-const levVal = $("levVal");
-const output = $("output");
-const slHint = $("slHint");
-const tpHint = $("tpHint");
-
-const longBtn = $("longBtn");
-const shortBtn = $("shortBtn");
+const capital = $("capital"), risk = $("risk"), entry = $("entry"), stop = $("stop"), tp = $("tp"), leverage = $("leverage"), levVal = $("levVal"), output = $("output"), slHint = $("slHint"), tpHint = $("tpHint");
+const longBtn = $("longBtn"), shortBtn = $("shortBtn");
 
 longBtn.onclick = () => setDirection("long");
 shortBtn.onclick = () => setDirection("short");
-
-document.querySelectorAll("input").forEach(i =>
-  i.addEventListener("input", calculate)
-);
+document.querySelectorAll("input").forEach(i => i.addEventListener("input", calculate));
 
 function updateDirectionUI() {
   longBtn.classList.toggle("active", direction === "long");
   shortBtn.classList.toggle("active", direction === "short");
 }
 
-function setDirection(dir) {
-  direction = dir;
-  updateDirectionUI();
-  resetUI();
-  calculate();
-}
-
-function resetUI() {
-  slHint.innerHTML = "";
-  tpHint.innerHTML = "";
-  output.innerHTML = "";
-}
-
-function validSL(e, s) {
-  return direction === "long" ? s < e : s > e;
-}
-
-function validTP(e, t) {
-  return direction === "long" ? t > e : t < e;
-}
+function setDirection(dir) { direction = dir; updateDirectionUI(); resetUI(); calculate(); }
+function resetUI() { slHint.innerHTML = ""; tpHint.innerHTML = ""; output.innerHTML = ""; }
+function validSL(e,s) { return direction==="long"?s<e:s>e; }
+function validTP(e,t) { return direction==="long"?t>e:t<e; }
 
 function calculate() {
   resetUI();
-
-  const cap = +capital.value;
-  const riskPct = +risk.value / 100;
-  const e = +entry.value;
-  const s = +stop.value;
-  const t = +tp.value;
-  const lev = +leverage.value;
-
+  const cap=+capital.value, riskPct=+risk.value/100, e=+entry.value, s=+stop.value, t=+tp.value, lev=+leverage.value;
   levVal.innerText = lev;
-
-  if (!cap || !riskPct || !e || !s) return;
-  if (!validSL(e, s)) return;
-
-  const riskUSD = cap * riskPct;
-  const stopMove = Math.abs((e - s) / e);
-
-  const positionSize = riskUSD / stopMove;
-  const margin = positionSize / lev;
-
-  slHint.innerHTML =
-    `Loss at SL: $${riskUSD.toFixed(2)} (${(stopMove * 100).toFixed(2)}%)`;
-
-  let rrBlock = "";
-
-  if (t && validTP(e, t)) {
-    const tpMove = Math.abs((t - e) / e);
-    const profit = positionSize * tpMove;
-    const rr = tpMove / stopMove;
-
-    tpHint.innerHTML =
-      `Profit at TP: $${profit.toFixed(2)} (${(tpMove * 100).toFixed(2)}%)`;
-
-    rrBlock = `<div><b>R:R</b> — 1 : ${rr.toFixed(2)}</div>`;
+  if(!cap||!riskPct||!e||!s) return;
+  if(!validSL(e,s)) return;
+  const riskUSD=cap*riskPct, stopMove=Math.abs((e-s)/e);
+  const positionSize=riskUSD/stopMove, margin=positionSize/lev;
+  slHint.innerHTML=`Loss at SL: $${riskUSD.toFixed(2)} (${(stopMove*100).toFixed(2)}%)`;
+  let rrBlock="";
+  if(t&&validTP(e,t)){
+    const tpMove=Math.abs((t-e)/e), profit=positionSize*tpMove, rr=tpMove/stopMove;
+    tpHint.innerHTML=`Profit at TP: $${profit.toFixed(2)} (${(tpMove*100).toFixed(2)}%)`;
+    rrBlock=`<div><b>R:R</b> — 1 : ${rr.toFixed(2)}</div>`;
   }
-
-  output.innerHTML = `
-    <div><b>Position size:</b> $${positionSize.toFixed(2)}</div>
-    <div><b>Margin:</b> $${margin.toFixed(2)}</div>
-    ${rrBlock}
-  `;
+  output.innerHTML=`<div><b>Position size:</b> $${positionSize.toFixed(2)}</div><div><b>Margin:</b> $${margin.toFixed(2)}</div>${rrBlock}`;
 }
 
 updateDirectionUI();
