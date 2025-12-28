@@ -6,58 +6,100 @@
 <title>Trade Risk Calculator</title>
 
 <style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #f7f7f7;
-    margin: 0;
-    padding: 20px;
-  }
-  .container {
-    max-width: 420px;
-    margin: auto;
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-  }
-  h1 {
-    text-align: center;
-    font-size: 20px;
-    margin-bottom: 20px;
-  }
-  label {
-    font-size: 14px;
-    margin-top: 12px;
-    display: block;
-  }
-  input[type="number"] {
-    width: 100%;
-    padding: 10px;
-    margin-top: 4px;
-    font-size: 16px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-  }
-  input[type="range"] {
-    width: 100%;
-  }
-  .hint {
-    font-size: 13px;
-    margin-top: 4px;
-    color: #555;
-  }
-  .result {
-    margin-top: 20px;
-    background: #f0f0f0;
-    padding: 14px;
-    border-radius: 10px;
-    font-size: 15px;
-  }
-  .row {
-    margin-bottom: 6px;
-  }
-  .green { color: #0a8a3a; }
-  .red { color: #c0392b; }
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f7f7f7;
+  margin: 0;
+  padding: 16px;
+}
+
+.container {
+  max-width: 420px;
+  margin: auto;
+  background: #ffffff;
+  padding: 18px;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+h1 {
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+label {
+  font-size: 14px;
+  margin-top: 12px;
+  display: block;
+}
+
+input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  margin-top: 4px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+.switch {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.switch button {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.4;
+}
+
+.switch .long {
+  background: #00c853;
+  color: #fff;
+}
+
+.switch .short {
+  background: #d50000;
+  color: #fff;
+}
+
+.switch .active {
+  opacity: 1;
+}
+
+.hint {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.green { color: #0a8a3a; }
+.red { color: #c0392b; }
+
+.result {
+  margin-top: 18px;
+  background: #f1f1f1;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.row {
+  margin-bottom: 6px;
+}
 </style>
 </head>
 
@@ -65,6 +107,11 @@
 
 <div class="container">
   <h1>Trade Risk Calculator</h1>
+
+  <div class="switch">
+    <button id="longBtn" class="long active">LONG</button>
+    <button id="shortBtn" class="short">SHORT</button>
+  </div>
 
   <label>Капитал ($)</label>
   <input id="capital" type="number" value="1000">
@@ -90,35 +137,60 @@
 </div>
 
 <script>
-const inputs = document.querySelectorAll("input");
-inputs.forEach(i => i.addEventListener("input", calculate));
+let direction = "long";
+
+longBtn.onclick = () => setDirection("long");
+shortBtn.onclick = () => setDirection("short");
+
+function setDirection(dir) {
+  direction = dir;
+  longBtn.classList.toggle("active", dir === "long");
+  shortBtn.classList.toggle("active", dir === "short");
+  calculate();
+}
+
+document.querySelectorAll("input").forEach(i =>
+  i.addEventListener("input", calculate)
+);
 
 function calculate() {
-  const capital = parseFloat(capitalEl.value);
-  const riskPct = parseFloat(riskEl.value) / 100;
-  const entry = parseFloat(entryEl.value);
-  const stop = parseFloat(stopEl.value);
-  const tp = parseFloat(tpEl.value);
-  const leverage = parseFloat(levEl.value);
+  const capital = +capitalEl.value;
+  const riskPct = +riskEl.value / 100;
+  const entry = +entryEl.value;
+  const stop = +stopEl.value;
+  const tp = +tpEl.value;
+  const leverage = +levEl.value;
 
   levVal.innerText = leverage;
 
   if (!capital || !riskPct || !entry || !stop) return;
 
   const maxLoss = capital * riskPct;
-  const stopPct = Math.abs(entry - stop) / entry;
+
+  let stopPct, tpPct;
+
+  if (direction === "long") {
+    stopPct = (entry - stop) / entry;
+    tpPct = tp ? (tp - entry) / entry : null;
+  } else {
+    stopPct = (stop - entry) / entry;
+    tpPct = tp ? (entry - tp) / entry : null;
+  }
+
+  if (stopPct <= 0) return;
+
   const positionSize = maxLoss / stopPct;
   const margin = positionSize / leverage;
 
-  // SL result
-  const slLossUsd = positionSize * stopPct;
-  slResult.innerHTML = `Убыток по SL: $${slLossUsd.toFixed(2)} (${(stopPct*100).toFixed(2)}%)`;
+  slResult.innerHTML = `Убыток по SL: $${maxLoss.toFixed(2)} (${(stopPct*100).toFixed(2)}%)`;
 
-  // TP result
-  if (tp) {
-    const tpPct = Math.abs(tp - entry) / entry;
-    const tpProfitUsd = positionSize * tpPct;
-    tpResult.innerHTML = `Прибыль по TP: $${tpProfitUsd.toFixed(2)} (${(tpPct*100).toFixed(2)}%)`;
+  let rrText = "";
+
+  if (tpPct && tpPct > 0) {
+    const profit = positionSize * tpPct;
+    const rr = tpPct / stopPct;
+    tpResult.innerHTML = `Прибыль по TP: $${profit.toFixed(2)} (${(tpPct*100).toFixed(2)}%)`;
+    rrText = `<div class="row"><b>R:R</b> — 1 : ${rr.toFixed(2)}</div>`;
   } else {
     tpResult.innerHTML = "";
   }
@@ -126,7 +198,7 @@ function calculate() {
   output.innerHTML = `
     <div class="row"><b>Размер позиции:</b> $${positionSize.toFixed(2)}</div>
     <div class="row"><b>Маржа:</b> $${margin.toFixed(2)}</div>
-    <div class="row"><b>Макс. риск:</b> $${maxLoss.toFixed(2)}</div>
+    ${rrText}
   `;
 }
 
