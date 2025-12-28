@@ -1,18 +1,16 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trade Risk Calculator</title>
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #f7f7f7;
+  background: #f5f5f5;
   margin: 0;
   padding: 16px;
 }
@@ -20,7 +18,7 @@ body {
 .container {
   max-width: 420px;
   margin: auto;
-  background: #ffffff;
+  background: #fff;
   padding: 18px;
   border-radius: 16px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
@@ -38,7 +36,7 @@ label {
   display: block;
 }
 
-input[type="number"] {
+input[type="number"], input[type="range"] {
   width: 100%;
   padding: 10px;
   margin-top: 4px;
@@ -47,14 +45,10 @@ input[type="number"] {
   border: 1px solid #ccc;
 }
 
-input[type="range"] {
-  width: 100%;
-}
-
 .switch {
   display: flex;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .switch button {
@@ -67,19 +61,9 @@ input[type="range"] {
   opacity: 0.4;
 }
 
-.switch .long {
-  background: #00c853;
-  color: #fff;
-}
-
-.switch .short {
-  background: #d50000;
-  color: #fff;
-}
-
-.switch .active {
-  opacity: 1;
-}
+.long { background: #00c853; color: #fff; }
+.short { background: #d50000; color: #fff; }
+.active { opacity: 1; }
 
 .hint {
   font-size: 13px;
@@ -96,10 +80,6 @@ input[type="range"] {
   border-radius: 12px;
   font-size: 15px;
 }
-
-.row {
-  margin-bottom: 6px;
-}
 </style>
 </head>
 
@@ -113,24 +93,24 @@ input[type="range"] {
     <button id="shortBtn" class="short">SHORT</button>
   </div>
 
-  <label>Капитал ($)</label>
+  <label>Capital ($)</label>
   <input id="capital" type="number" value="1000">
 
-  <label>Риск на сделку (%)</label>
+  <label>Risk per trade (%)</label>
   <input id="risk" type="number" value="1">
 
   <label>Entry price</label>
   <input id="entry" type="number" step="any">
 
-  <label>Stop-loss</label>
+  <label>Stop loss</label>
   <input id="stop" type="number" step="any">
-  <div class="hint red" id="slResult"></div>
+  <div class="hint red" id="slHint"></div>
 
-  <label>Take-profit</label>
+  <label>Take profit</label>
   <input id="tp" type="number" step="any">
-  <div class="hint green" id="tpResult"></div>
+  <div class="hint green" id="tpHint"></div>
 
-  <label>Плечо: <b><span id="levVal">5</span>x</b></label>
+  <label>Leverage: <b><span id="levVal">5</span>x</b></label>
   <input id="leverage" type="range" min="1" max="20" value="5">
 
   <div class="result" id="output"></div>
@@ -139,79 +119,87 @@ input[type="range"] {
 <script>
 let direction = "long";
 
-longBtn.onclick = () => setDirection("long");
-shortBtn.onclick = () => setDirection("short");
+const el = id => document.getElementById(id);
 
-function setDirection(dir) {
-  direction = dir;
-  longBtn.classList.toggle("active", dir === "long");
-  shortBtn.classList.toggle("active", dir === "short");
-  calculate();
-}
+const capital = el("capital");
+const risk = el("risk");
+const entry = el("entry");
+const stop = el("stop");
+const tp = el("tp");
+const leverage = el("leverage");
+const levVal = el("levVal");
+const output = el("output");
+const slHint = el("slHint");
+const tpHint = el("tpHint");
+
+el("longBtn").onclick = () => setDirection("long");
+el("shortBtn").onclick = () => setDirection("short");
 
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
 
+function setDirection(dir) {
+  direction = dir;
+  el("longBtn").classList.toggle("active", dir === "long");
+  el("shortBtn").classList.toggle("active", dir === "short");
+  resetHints();
+  calculate();
+}
+
+function resetHints() {
+  slHint.innerHTML = "";
+  tpHint.innerHTML = "";
+  output.innerHTML = "";
+}
+
+function validSL(entry, stop) {
+  return direction === "long" ? stop < entry : stop > entry;
+}
+
+function validTP(entry, tp) {
+  return direction === "long" ? tp > entry : tp < entry;
+}
+
 function calculate() {
-  const capital = +capitalEl.value;
-  const riskPct = +riskEl.value / 100;
-  const entry = +entryEl.value;
-  const stop = +stopEl.value;
-  const tp = +tpEl.value;
-  const leverage = +levEl.value;
+  resetHints();
 
-  levVal.innerText = leverage;
+  const cap = +capital.value;
+  const riskPct = +risk.value / 100;
+  const ent = +entry.value;
+  const sl = +stop.value;
+  const tpv = +tp.value;
+  const lev = +leverage.value;
 
-  if (!capital || !riskPct || !entry || !stop) return;
+  levVal.innerText = lev;
 
-  const maxLoss = capital * riskPct;
+  if (!cap || !riskPct || !ent || !sl) return;
+  if (!validSL(ent, sl)) return;
 
-  let stopPct, tpPct;
+  const maxLoss = cap * riskPct;
+  const stopMove = Math.abs((ent - sl) / ent);
+  const positionSize = maxLoss / stopMove;
+  const margin = positionSize / lev;
 
-  if (direction === "long") {
-    stopPct = (entry - stop) / entry;
-    tpPct = tp ? (tp - entry) / entry : null;
-  } else {
-    stopPct = (stop - entry) / entry;
-    tpPct = tp ? (entry - tp) / entry : null;
-  }
+  slHint.innerHTML = `Loss at SL: $${maxLoss.toFixed(2)} (${(stopMove * 100).toFixed(2)}%)`;
 
-  if (stopPct <= 0) return;
+  let rrBlock = "";
 
-  const positionSize = maxLoss / stopPct;
-  const margin = positionSize / leverage;
+  if (tpv && validTP(ent, tpv)) {
+    const tpMove = Math.abs((tpv - ent) / ent);
+    const profit = positionSize * tpMove;
+    const rr = tpMove / stopMove;
 
-  slResult.innerHTML = `Убыток по SL: $${maxLoss.toFixed(2)} (${(stopPct*100).toFixed(2)}%)`;
-
-  let rrText = "";
-
-  if (tpPct && tpPct > 0) {
-    const profit = positionSize * tpPct;
-    const rr = tpPct / stopPct;
-    tpResult.innerHTML = `Прибыль по TP: $${profit.toFixed(2)} (${(tpPct*100).toFixed(2)}%)`;
-    rrText = `<div class="row"><b>R:R</b> — 1 : ${rr.toFixed(2)}</div>`;
-  } else {
-    tpResult.innerHTML = "";
+    tpHint.innerHTML = `Profit at TP: $${profit.toFixed(2)} (${(tpMove * 100).toFixed(2)}%)`;
+    rrBlock = `<div><b>R:R</b> — 1 : ${rr.toFixed(2)}</div>`;
   }
 
   output.innerHTML = `
-    <div class="row"><b>Размер позиции:</b> $${positionSize.toFixed(2)}</div>
-    <div class="row"><b>Маржа:</b> $${margin.toFixed(2)}</div>
-    ${rrText}
+    <div><b>Position size:</b> $${positionSize.toFixed(2)}</div>
+    <div><b>Margin:</b> $${margin.toFixed(2)}</div>
+    ${rrBlock}
   `;
 }
-
-const capitalEl = document.getElementById("capital");
-const riskEl = document.getElementById("risk");
-const entryEl = document.getElementById("entry");
-const stopEl = document.getElementById("stop");
-const tpEl = document.getElementById("tp");
-const levEl = document.getElementById("leverage");
-const levVal = document.getElementById("levVal");
-const output = document.getElementById("output");
-const slResult = document.getElementById("slResult");
-const tpResult = document.getElementById("tpResult");
 </script>
 
 </body>
