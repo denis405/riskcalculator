@@ -70,6 +70,7 @@ input[type="number"], input[type="range"] {
   border: none;
   cursor: pointer;
   opacity: 0.4;
+  transition: opacity 0.15s ease;
 }
 
 .long { background: #00c853; color: #fff; }
@@ -101,7 +102,7 @@ input[type="number"], input[type="range"] {
   <div class="sub">Bybit · USDT Perpetual</div>
 
   <div class="switch">
-    <button id="longBtn" class="long active">LONG</button>
+    <button id="longBtn" class="long">LONG</button>
     <button id="shortBtn" class="short">SHORT</button>
   </div>
 
@@ -135,7 +136,8 @@ if ("serviceWorker" in navigator) {
 }
 
 /* ===== Logic ===== */
-let direction = "long";
+let direction = "long"; // DEFAULT
+
 const $ = id => document.getElementById(id);
 
 const capital = $("capital");
@@ -156,10 +158,14 @@ document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
 
+function updateDirectionUI() {
+  $("longBtn").classList.toggle("active", direction === "long");
+  $("shortBtn").classList.toggle("active", direction === "short");
+}
+
 function setDirection(dir) {
   direction = dir;
-  $("longBtn").classList.toggle("active", dir === "long");
-  $("shortBtn").classList.toggle("active", dir === "short");
+  updateDirectionUI();
   resetUI();
   calculate();
 }
@@ -196,7 +202,7 @@ function calculate() {
   const riskUSD = cap * riskPct;
   const stopMove = Math.abs((e - s) / e);
 
-  const positionSize = riskUSD / stopMove;   // USDT
+  const positionSize = riskUSD / stopMove;
   const margin = positionSize / lev;
 
   slHint.innerHTML =
@@ -221,6 +227,9 @@ function calculate() {
     ${rrBlock}
   `;
 }
+
+/* INIT */
+updateDirectionUI();
 </script>
 
 </body>
