@@ -6,8 +6,13 @@
 
 <title>Bybit Risk Calculator</title>
 
+<!-- PWA Manifest -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00c853">
+
+<!-- iOS PWA support -->
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <style>
 * { box-sizing: border-box; }
@@ -59,7 +64,7 @@ input[type="number"], input[type="range"] {
 .switch {
   display: flex;
   gap: 10px;
-  margin-bottom: 18px; /* увеличенное расстояние до первой графы ввода */
+  margin-bottom: 18px;
 }
 
 .switch button {
@@ -69,7 +74,7 @@ input[type="number"], input[type="range"] {
   border-radius: 12px;
   border: none;
   cursor: pointer;
-  opacity: 0.6; /* менее ярко */
+  opacity: 0.6;
   transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -78,8 +83,8 @@ input[type="number"], input[type="range"] {
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.long { background: #66bb6a; color: #fff; } /* менее яркий зелёный */
-.short { background: #e57373; color: #fff; } /* менее яркий красный */
+.long { background: #66bb6a; color: #fff; }
+.short { background: #e57373; color: #fff; }
 
 .hint {
   font-size: 13px;
@@ -134,12 +139,10 @@ input[type="number"], input[type="range"] {
 </div>
 
 <script>
-/* ===== PWA ===== */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
 
-/* ===== Logic ===== */
 let direction = "long"; // DEFAULT
 
 const $ = id => document.getElementById(id);
@@ -235,9 +238,8 @@ function calculate() {
   `;
 }
 
-/* INIT */
 updateDirectionUI();
-calculate(); // сразу показать расчёт при загрузке
+calculate();
 </script>
 
 </body>
