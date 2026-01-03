@@ -1,83 +1,83 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Risk Calculator</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Calculator v2</title>
 
 <style>
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #0f1115;
-  color: #fff;
-  margin: 0;
-  padding: 16px;
+  background:#0f1115;
+  color:#fff;
+  margin:0;
+  padding:16px;
 }
-h1 { font-size: 20px; margin-bottom: 12px; }
 
 .card {
-  background: #181b22;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
+  background:#181b22;
+  border-radius:12px;
+  padding:14px;
+  margin-bottom:12px;
 }
 
-.row {
-  display: flex;
-  gap: 8px;
+.row { display:flex; gap:8px; }
+
+button, input {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  background:#232734;
+  color:white;
+  font-size:14px;
 }
 
-button, input, select {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  background: #232734;
-  color: white;
-  font-size: 14px;
-}
+button.active { background:#4f7cff; }
 
-button.active {
-  background: #4f7cff;
-}
+.small { font-size:12px; opacity:0.7; }
 
-.result {
-  font-size: 15px;
-  line-height: 1.6;
-}
-.small {
-  font-size: 12px;
-  opacity: 0.7;
-}
+#settings { display:none; }
 </style>
 </head>
 
 <body>
 
-<h1>Risk Calculator</h1>
+<div class="row">
+  <h3 style="flex:1">Risk Calculator</h3>
+  <button onclick="toggleSettings()" style="width:auto">⚙️</button>
+</div>
+
+<div id="settings" class="card">
+  <div class="small">Комиссии (доли, не %)</div>
+  <input id="spotMaker" value="0.001">
+  <input id="spotTaker" value="0.0018">
+  <input id="futMaker" value="0.00036">
+  <input id="futTaker" value="0.001">
+</div>
 
 <div class="card">
   <div class="row">
-    <button id="modeSpot" class="active">SPOT</button>
-    <button id="modeFutures">FUTURES</button>
+    <button id="modeSpot" class="active" onclick="setMode('spot')">SPOT</button>
+    <button id="modeFutures" onclick="setMode('futures')">FUTURES</button>
   </div>
   <div class="row" style="margin-top:8px">
-    <button id="longBtn" class="active">LONG</button>
-    <button id="shortBtn">SHORT</button>
+    <button id="longBtn" class="active" onclick="setSide('long')">LONG</button>
+    <button id="shortBtn" onclick="setSide('short')">SHORT</button>
   </div>
 </div>
 
 <div class="card">
-  <input id="capital" placeholder="Capital (USDT)" type="number">
-  <input id="risk" placeholder="Risk %" type="number" step="0.1">
-  <input id="entry" placeholder="Entry price" type="number">
-  <input id="sl" placeholder="Stop Loss" type="number">
-  <input id="tp" placeholder="Take Profit" type="number">
-  <input id="symbol" placeholder="Symbol (BTCUSDT)" value="BTCUSDT">
+  <input id="capital" type="number" value="1000" placeholder="Capital USDT">
+  <input id="risk" type="number" value="1" step="0.1" placeholder="Risk %">
+  <input id="entry" type="number" placeholder="Entry">
+  <input id="sl" type="number" placeholder="Stop Loss">
+  <input id="tp" type="number" placeholder="Take Profit">
+  <input id="symbol" value="BTCUSDT" placeholder="Symbol">
 </div>
 
 <div class="card" id="leverageBox" style="display:none">
-  <input id="leverage" placeholder="Leverage" value="1" type="number">
+  <input id="leverage" type="number" value="1" placeholder="Leverage">
   <label class="small">
     <input type="checkbox" id="useFunding" checked> учитывать funding
   </label>
@@ -87,83 +87,67 @@ button.active {
   <button onclick="calculate()">Calculate</button>
 </div>
 
-<div class="card result" id="result"></div>
+<div class="card" id="result"></div>
 
 <script>
 let mode = "spot";
 let side = "long";
 
-const FEES = JSON.parse(localStorage.getItem("fees")) || {
-  spot: { maker: 0.001, taker: 0.0018 },
-  futures: { maker: 0.00036, taker: 0.001 }
-};
-
-document.getElementById("modeSpot").onclick = () => setMode("spot");
-document.getElementById("modeFutures").onclick = () => setMode("futures");
-document.getElementById("longBtn").onclick = () => setSide("long");
-document.getElementById("shortBtn").onclick = () => setSide("short");
-
-function setMode(m) {
-  mode = m;
-  document.getElementById("modeSpot").classList.toggle("active", m==="spot");
-  document.getElementById("modeFutures").classList.toggle("active", m==="futures");
-  document.getElementById("leverageBox").style.display = m==="futures" ? "block" : "none";
+function setMode(m){
+  mode=m;
+  modeSpot.classList.toggle("active",m==="spot");
+  modeFutures.classList.toggle("active",m==="futures");
+  leverageBox.style.display = m==="futures"?"block":"none";
 }
 
-function setSide(s) {
-  side = s;
-  document.getElementById("longBtn").classList.toggle("active", s==="long");
-  document.getElementById("shortBtn").classList.toggle("active", s==="short");
+function setSide(s){
+  side=s;
+  longBtn.classList.toggle("active",s==="long");
+  shortBtn.classList.toggle("active",s==="short");
 }
 
-async function getFunding(symbol) {
-  const url = `https://api.bybit.com/v5/market/funding/history?category=linear&symbol=${symbol}&limit=1`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.result?.list?.[0]?.fundingRate || 0;
+function toggleSettings(){
+  settings.style.display = settings.style.display==="none"?"block":"none";
 }
 
-async function calculate() {
-  const capital = +capitalInput.value;
-  const riskPct = +risk.value / 100;
-  const entryP = +entry.value;
-  const slP = +sl.value;
-  const lev = +leverage.value || 1;
-  const symbol = symbolInput.value;
+async function getFunding(symbol){
+  const r = await fetch(`https://api.bybit.com/v5/market/funding/history?category=linear&symbol=${symbol}&limit=1`);
+  const j = await r.json();
+  return +j.result?.list?.[0]?.fundingRate || 0;
+}
+
+async function calculate(){
+  const capital = +document.getElementById("capital").value;
+  const riskPct = +document.getElementById("risk").value / 100;
+  const entry = +document.getElementById("entry").value;
+  const sl = +document.getElementById("sl").value;
+  const symbol = document.getElementById("symbol").value;
+  const lev = +document.getElementById("leverage").value || 1;
+
+  const move = Math.abs(entry - sl);
+  if (!move) { result.innerHTML="❌ Invalid SL"; return; }
 
   const maxLoss = capital * riskPct;
-  const move = Math.abs(entryP - slP);
 
-  if (move <= 0) {
-    result.innerHTML = "❌ Invalid SL";
-    return;
-  }
+  const maker = +(mode==="spot"?spotMaker.value:futMaker.value);
+  const taker = +(mode==="spot"?spotTaker.value:futTaker.value);
 
   let funding = 0;
-  if (mode === "futures" && useFunding.checked) {
-    funding = (await getFunding(symbol)) * entryP;
+  if (mode==="futures" && useFunding.checked){
+    funding = entry * (await getFunding(symbol));
   }
 
-  const feeIn = entryP * FEES[mode].maker;
-  const feeOut = entryP * FEES[mode].taker;
+  const fees = entry*maker + entry*taker + funding;
+  const netRisk = maxLoss - fees;
+  if (netRisk<=0){ result.innerHTML="❌ Fees eat all risk"; return; }
 
-  const netRisk = maxLoss - feeIn - feeOut - funding;
-
-  if (netRisk <= 0) {
-    result.innerHTML = "❌ Fees eat all risk";
-    return;
-  }
-
-  const positionSize = netRisk / move;
-  const margin = mode === "spot"
-    ? positionSize * entryP
-    : (positionSize * entryP) / lev;
+  const size = netRisk / move;
+  const margin = mode==="spot" ? size*entry : (size*entry)/lev;
 
   result.innerHTML = `
-  Position size: <b>${positionSize.toFixed(4)}</b><br>
-  Margin required: <b>${margin.toFixed(2)} USDT</b><br>
-  Fees included: ${(feeIn + feeOut + funding).toFixed(2)} USDT<br>
-  <span class="small">SL = taker, funding = ${funding.toFixed(4)}</span>
+  Size: <b>${size.toFixed(4)}</b><br>
+  Margin: <b>${margin.toFixed(2)} USDT</b><br>
+  Fees+funding: ${fees.toFixed(2)} USDT
   `;
 }
 </script>
