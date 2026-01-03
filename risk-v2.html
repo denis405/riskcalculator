@@ -29,6 +29,12 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
+.inner-box {
+  background: #f7f8fc;
+  border-radius: 12px;
+  padding: 12px;
+}
+
 .row {
   display: flex;
   gap: 8px;
@@ -101,17 +107,16 @@ input[type="range"] {
   <input id="futTaker" value="0.001">
 </div>
 
-<!-- MODE -->
+<!-- TRADE SETUP -->
 <div class="card">
+  <div class="small" style="margin-bottom:6px;">Trade setup</div>
+
   <div class="row">
     <button id="btnSpot" class="active" onclick="setMode('spot')">SPOT</button>
     <button id="btnFutures" onclick="setMode('futures')">FUTURES</button>
   </div>
-</div>
 
-<!-- SIDE -->
-<div class="card">
-  <div class="row">
+  <div class="row" style="margin-top:8px">
     <button id="btnLong" class="active" onclick="setSide('long')">LONG</button>
     <button id="btnShort" onclick="setSide('short')">SHORT</button>
   </div>
@@ -144,8 +149,10 @@ input[type="range"] {
 </div>
 
 <!-- RESULT -->
-<div class="card" id="result">
-  <div class="small">Введите корректные данные</div>
+<div class="card">
+  <div class="inner-box" id="result">
+    <div class="small">Введите корректные данные</div>
+  </div>
 </div>
 
 </div>
@@ -153,6 +160,8 @@ input[type="range"] {
 <script>
 let mode = "spot";
 let side = "long";
+
+const el = id => document.getElementById(id);
 
 const elCapital = el("elCapital");
 const elRisk = el("elRisk");
@@ -173,8 +182,6 @@ elLev.addEventListener("input", () => {
   el("levVal").textContent = elLev.value;
   calculate();
 });
-
-function el(id){ return document.getElementById(id); }
 
 function toggleSettings(){
   el("settings").classList.toggle("open");
@@ -209,7 +216,6 @@ function calculate(){
 
   if (!capital || !riskPct || !entry || !sl) return;
 
-  // validation
   if (
     (side==="long" && sl>=entry) ||
     (side==="short" && sl<=entry)
