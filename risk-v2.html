@@ -78,6 +78,9 @@ input[type="range"] {
   opacity: 0.7;
 }
 
+.red { color: #d93025; }
+.green { color: #188038; }
+
 #settings { display: none; }
 #settings.open { display: block; }
 </style>
@@ -131,14 +134,16 @@ input[type="range"] {
 
   <label>Stop Loss</label>
   <input id="sl" type="number">
+  <div id="lossInfo" class="small"></div>
 
   <label>Take Profit</label>
   <input id="tp" type="number">
+  <div id="profitInfo" class="small"></div>
 </div>
 
 <div class="card" id="leverageBox" style="display:none">
   <label>Leverage: <b><span id="levVal">1</span>x</b></label>
-  <input id="leverage" type="range" min="1" max="50" value="1">
+  <input id="leverage" type="range" min="1" max="20" value="1">
 </div>
 
 <div class="card" id="result">
@@ -180,12 +185,15 @@ function toggleSettings(){
 }
 
 function calculate(){
-  const capital = +document.getElementById("capital").value;
-  const riskPct = +document.getElementById("risk").value / 100;
-  const entry = +document.getElementById("entry").value;
-  const sl = +document.getElementById("sl").value;
-  const tp = +document.getElementById("tp").value;
-  const lev = +document.getElementById("leverage").value || 1;
+  const capital = +capital.value;
+  const riskPct = +risk.value / 100;
+  const entry = +entry.value;
+  const sl = +sl.value;
+  const tp = +tp.value;
+  const lev = +leverage.value || 1;
+
+  lossInfo.innerHTML = "";
+  profitInfo.innerHTML = "";
 
   if (!capital || !riskPct || !entry || !sl) return;
 
@@ -194,41 +202,46 @@ function calculate(){
 
   const maxLoss = capital * riskPct;
 
-  const maker = +(mode==="spot"
-    ? document.getElementById("spotMaker").value
-    : document.getElementById("futMaker").value);
-
-  const taker = +(mode==="spot"
-    ? document.getElementById("spotTaker").value
-    : document.getElementById("futTaker").value);
+  const maker = +(mode==="spot" ? spotMaker.value : futMaker.value);
+  const taker = +(mode==="spot" ? spotTaker.value : futTaker.value);
 
   const fees = entry * (maker + taker);
   const netRisk = maxLoss - fees;
-
   if (netRisk <= 0){
     result.innerHTML = "❌ Комиссии съедают весь риск";
     return;
   }
 
-  const positionSize = netRisk / riskMove;
+  const positionValue = (netRisk / riskMove) * entry;
   const margin = mode==="spot"
-    ? positionSize * entry
-    : (positionSize * entry) / lev;
+    ? positionValue
+    : positionValue / lev;
 
+  // Loss at SL
+  const lossUsd = netRisk;
+  const lossPct = (lossUsd / capital) * 100;
+  lossInfo.innerHTML =
+    `<span class="red">Loss at SL: $${lossUsd.toFixed(2)} (${lossPct.toFixed(2)}%)</span>`;
+
+  // Profit at TP
   let rrText = "";
   if (tp){
     const rewardMove = Math.abs(tp - entry);
     if (rewardMove > 0){
-      const rr = rewardMove / riskMove;
-      rrText = `<br><b>RR:</b> ${rr.toFixed(2)}`;
+      const profitUsd = (rewardMove / riskMove) * netRisk;
+      const profitPct = (profitUsd / capital) * 100;
+      profitInfo.innerHTML =
+        `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${profitPct.toFixed(2)}%)</span>`;
+      rrText = `<b>RR:</b> ${(rewardMove / riskMove).toFixed(2)}<br>`;
     }
   }
 
   result.innerHTML = `
-    <b>Position size:</b> ${positionSize.toFixed(4)}<br>
-    <b>Margin:</b> ${margin.toFixed(2)} USDT<br>
-    <b>Fees:</b> ${fees.toFixed(2)} USDT
+    <b>Position size:</b> $${positionValue.toFixed(0)}<br>
+    <b>Margin:</b> $${margin.toFixed(0)}<br>
     ${rrText}
+    <b>Fees:</b> $${fees.toFixed(2)}
+    <span class="small">(entry maker + SL taker)</span>
   `;
 }
 </script>
