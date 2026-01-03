@@ -2,8 +2,15 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Risk Calculator v2</title>
+
+<!-- ❌ NO ZOOM ON iOS -->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Risk Calculator</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
 
 <style>
 * { box-sizing: border-box; }
@@ -68,7 +75,7 @@ input[type="range"] {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid #ddd;
-  font-size: 14px;
+  font-size: 16px; /* 🔒 prevent iOS zoom */
 }
 
 .small { font-size: 12px; opacity: 0.7; }
@@ -112,8 +119,8 @@ input[type="range"] {
   <div class="small" style="margin-bottom:6px;">Trade setup</div>
 
   <div class="row">
-    <button id="btnSpot" class="active" onclick="setMode('spot')">SPOT</button>
-    <button id="btnFutures" onclick="setMode('futures')">FUTURES</button>
+    <button id="btnSpot" onclick="setMode('spot')">SPOT</button>
+    <button id="btnFutures" class="active" onclick="setMode('futures')">FUTURES</button>
   </div>
 
   <div class="row" style="margin-top:8px">
@@ -143,7 +150,7 @@ input[type="range"] {
 </div>
 
 <!-- LEVERAGE -->
-<div class="card" id="leverageBox" style="display:none">
+<div class="card" id="leverageBox">
   <label>Leverage: <b><span id="levVal">1</span>x</b></label>
   <input id="elLev" type="range" min="1" max="20" value="1">
 </div>
@@ -158,11 +165,20 @@ input[type="range"] {
 </div>
 
 <script>
-let mode = "spot";
+/* =======================
+   STATE
+======================= */
+let mode = "futures";
 let side = "long";
 
+/* =======================
+   HELPERS
+======================= */
 const el = id => document.getElementById(id);
 
+/* =======================
+   ELEMENTS
+======================= */
 const elCapital = el("elCapital");
 const elRisk = el("elRisk");
 const elEntry = el("elEntry");
@@ -174,6 +190,9 @@ const lossInfo = el("lossInfo");
 const profitInfo = el("profitInfo");
 const result = el("result");
 
+/* =======================
+   EVENTS
+======================= */
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
@@ -183,6 +202,9 @@ elLev.addEventListener("input", () => {
   calculate();
 });
 
+/* =======================
+   UI ACTIONS
+======================= */
 function toggleSettings(){
   el("settings").classList.toggle("open");
 }
@@ -202,6 +224,9 @@ function setSide(s){
   calculate();
 }
 
+/* =======================
+   CALCULATION
+======================= */
 function calculate(){
   const capital = +elCapital.value;
   const riskPct = +elRisk.value / 100;
@@ -229,7 +254,7 @@ function calculate(){
 
   const fees = entry * (maker + taker);
   const netRisk = maxLoss - fees;
-  if (netRisk<=0) return;
+  if (netRisk <= 0) return;
 
   const positionValue = (netRisk / riskMove) * entry;
   const margin = mode==="spot" ? positionValue : positionValue / lev;
@@ -257,6 +282,13 @@ function calculate(){
     <b>Fees:</b> $${fees.toFixed(2)}
     <span class="small">(entry maker + SL taker)</span>
   `;
+}
+
+/* =======================
+   SERVICE WORKER
+======================= */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
 }
 </script>
 
