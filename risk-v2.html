@@ -16,6 +16,11 @@ body {
   padding: 16px;
 }
 
+.wrapper {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
 h3 {
   margin: 0;
   font-size: 18px;
@@ -35,6 +40,7 @@ h3 {
 }
 
 button {
+  flex: 1;
   padding: 10px;
   border-radius: 10px;
   border: 1px solid #ddd;
@@ -55,7 +61,8 @@ label {
   opacity: 0.8;
 }
 
-input {
+input[type="number"],
+input[type="text"] {
   width: 100%;
   padding: 10px;
   border-radius: 10px;
@@ -63,20 +70,32 @@ input {
   font-size: 14px;
 }
 
+input[type="range"] {
+  width: 100%;
+}
+
 .small {
   font-size: 12px;
   opacity: 0.7;
 }
 
-#settings { display: none; }
+#settings {
+  display: none;
+}
+
+#settings.open {
+  display: block;
+}
 </style>
 </head>
 
 <body>
 
+<div class="wrapper">
+
 <div class="row" style="align-items:center; margin-bottom:12px;">
   <h3 style="flex:1">Risk Calculator</h3>
-  <button onclick="toggleSettings()">⚙️</button>
+  <button style="flex:0 0 auto;" onclick="toggleSettings()">⚙️</button>
 </div>
 
 <div id="settings" class="card">
@@ -118,23 +137,17 @@ input {
 
   <label>Stop Loss</label>
   <input id="sl" type="number">
-
-  <label>Symbol (for funding)</label>
-  <input id="symbol" value="BTCUSDT">
 </div>
 
 <div class="card" id="leverageBox" style="display:none">
-  <label>Leverage</label>
-  <input id="leverage" type="number" value="1">
-
-  <label class="small">
-    <input type="checkbox" id="useFunding" checked>
-    учитывать funding
-  </label>
+  <label>Leverage: <b><span id="levVal">1</span>x</b></label>
+  <input id="leverage" type="range" min="1" max="50" value="1">
 </div>
 
 <div class="card" id="result">
   <div class="small">Введите данные для расчёта</div>
+</div>
+
 </div>
 
 <script>
@@ -143,6 +156,11 @@ let side = "long";
 
 const inputs = document.querySelectorAll("input");
 inputs.forEach(i => i.addEventListener("input", calculate));
+
+leverage.addEventListener("input", () => {
+  levVal.textContent = leverage.value;
+  calculate();
+});
 
 function setMode(m){
   mode = m;
@@ -160,23 +178,14 @@ function setSide(s){
 }
 
 function toggleSettings(){
-  settings.style.display = settings.style.display==="none" ? "block" : "none";
+  settings.classList.toggle("open");
 }
 
-async function getFunding(symbol){
-  const r = await fetch(
-    `https://api.bybit.com/v5/market/funding/history?category=linear&symbol=${symbol}&limit=1`
-  );
-  const j = await r.json();
-  return +j.result?.list?.[0]?.fundingRate || 0;
-}
-
-async function calculate(){
+function calculate(){
   const capital = +capitalInput.value;
   const riskPct = +risk.value / 100;
   const entry = +entry.value;
   const sl = +sl.value;
-  const symbol = symbolInput.value;
   const lev = +leverage.value || 1;
 
   if (!capital || !riskPct || !entry || !sl) return;
@@ -189,13 +198,9 @@ async function calculate(){
   const maker = +(mode==="spot" ? spotMaker.value : futMaker.value);
   const taker = +(mode==="spot" ? spotTaker.value : futTaker.value);
 
-  let funding = 0;
-  if (mode==="futures" && useFunding.checked){
-    funding = entry * (await getFunding(symbol));
-  }
-
-  const fees = entry * maker + entry * taker + funding;
+  const fees = entry * maker + entry * taker;
   const netRisk = maxLoss - fees;
+
   if (netRisk <= 0){
     result.innerHTML = "❌ Комиссии съедают весь риск";
     return;
@@ -209,7 +214,7 @@ async function calculate(){
   result.innerHTML = `
     <b>Position size:</b> ${positionSize.toFixed(4)}<br>
     <b>Margin:</b> ${margin.toFixed(2)} USDT<br>
-    <b>Fees + funding:</b> ${fees.toFixed(2)} USDT
+    <b>Fees:</b> ${fees.toFixed(2)} USDT
   `;
 }
 </script>
