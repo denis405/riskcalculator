@@ -78,29 +78,10 @@ input[type="range"] {
 
 <div class="wrapper">
 
-<div class="row" style="align-items:center; margin-bottom:12px;">
-  <h3 style="flex:1">Risk Calculator</h3>
-  <button style="flex:0 0 auto;" onclick="toggleSettings()">⚙️</button>
-</div>
-
-<div id="settings" class="card">
-  <label>Spot maker</label>
-  <input id="spotMaker" value="0.001">
-
-  <label>Spot taker</label>
-  <input id="spotTaker" value="0.0018">
-
-  <label>Futures maker</label>
-  <input id="futMaker" value="0.00036">
-
-  <label>Futures taker (SL)</label>
-  <input id="futTaker" value="0.001">
-</div>
-
 <div class="card">
   <div class="row">
-    <button id="btnSpot" class="active" onclick="setMode('spot')">SPOT</button>
-    <button id="btnFutures" onclick="setMode('futures')">FUTURES</button>
+    <button id="btnLong" class="active" onclick="setSide('long')">LONG</button>
+    <button id="btnShort" onclick="setSide('short')">SHORT</button>
   </div>
 </div>
 
@@ -123,26 +104,20 @@ input[type="range"] {
   <div id="profitInfo" class="small"></div>
 </div>
 
-<div class="card" id="leverageBox" style="display:none">
-  <label>Leverage: <b><span id="levVal">1</span>x</b></label>
-  <input id="elLev" type="range" min="1" max="20" value="1">
-</div>
-
-<div class="card" id="result" class="small">
-  Введите данные для расчёта
+<div class="card" id="result">
+  <div class="small">Введите корректные данные</div>
 </div>
 
 </div>
 
 <script>
-let mode = "spot";
+let side = "long";
 
 const elCapital = document.getElementById("elCapital");
 const elRisk = document.getElementById("elRisk");
 const elEntry = document.getElementById("elEntry");
 const elSL = document.getElementById("elSL");
 const elTP = document.getElementById("elTP");
-const elLev = document.getElementById("elLev");
 
 const lossInfo = document.getElementById("lossInfo");
 const profitInfo = document.getElementById("profitInfo");
@@ -152,73 +127,66 @@ document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
 
-elLev.addEventListener("input", () => {
-  document.getElementById("levVal").textContent = elLev.value;
-  calculate();
-});
-
-function setMode(m){
-  mode = m;
-  btnSpot.classList.toggle("active", m==="spot");
-  btnFutures.classList.toggle("active", m==="futures");
-  leverageBox.style.display = m==="futures" ? "block" : "none";
+function setSide(s) {
+  side = s;
+  btnLong.classList.toggle("active", s === "long");
+  btnShort.classList.toggle("active", s === "short");
   calculate();
 }
 
-function toggleSettings(){
-  settings.classList.toggle("open");
-}
-
-function calculate(){
-  const capitalValue = +elCapital.value;
+function calculate() {
+  const capital = +elCapital.value;
   const riskPct = +elRisk.value / 100;
   const entry = +elEntry.value;
   const sl = +elSL.value;
   const tp = +elTP.value;
-  const lev = +elLev.value || 1;
 
   lossInfo.innerHTML = "";
   profitInfo.innerHTML = "";
+  result.innerHTML = `<div class="small">Введите корректные данные</div>`;
 
-  if (!capitalValue || !riskPct || !entry || !sl) return;
+  if (!capital || !riskPct || !entry || !sl) return;
+
+  // 🔒 ВАЛИДАЦИЯ ПО СТОРОНЕ
+  if (
+    (side === "long" && sl >= entry) ||
+    (side === "short" && sl <= entry)
+  ) return;
 
   const riskMove = Math.abs(entry - sl);
-  if (riskMove <= 0) return;
+  const maxLoss = capital * riskPct;
 
-  const maxLoss = capitalValue * riskPct;
+  const positionValue = (maxLoss / riskMove) * entry;
+  const margin = positionValue;
 
-  const maker = +(mode==="spot" ? spotMaker.value : futMaker.value);
-  const taker = +(mode==="spot" ? spotTaker.value : futTaker.value);
-
-  const fees = entry * (maker + taker);
-  const netRisk = maxLoss - fees;
-  if (netRisk <= 0){
-    result.innerHTML = "❌ Комиссии съедают весь риск";
-    return;
-  }
-
-  const positionValue = (netRisk / riskMove) * entry;
-  const margin = mode==="spot" ? positionValue : positionValue / lev;
-
+  // LOSS
   lossInfo.innerHTML =
-    `<span class="red">Loss at SL: $${netRisk.toFixed(2)} (${(netRisk/capitalValue*100).toFixed(2)}%)</span>`;
+    `<span class="red">Loss at SL: $${maxLoss.toFixed(2)} (${(riskPct*100).toFixed(2)}%)</span>`;
 
   let rrText = "";
-  if (tp){
+
+  // TP VALIDATION
+  if (
+    tp &&
+    (
+      (side === "long" && tp > entry) ||
+      (side === "short" && tp < entry)
+    )
+  ) {
     const rewardMove = Math.abs(tp - entry);
-    if (rewardMove > 0){
-      const profitUsd = (rewardMove / riskMove) * netRisk;
-      profitInfo.innerHTML =
-        `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${(profitUsd/capitalValue*100).toFixed(2)}%)</span>`;
-      rrText = `<b>RR:</b> ${(rewardMove / riskMove).toFixed(2)}<br>`;
-    }
+    const profitUsd = (rewardMove / riskMove) * maxLoss;
+    const profitPct = (profitUsd / capital) * 100;
+
+    profitInfo.innerHTML =
+      `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${profitPct.toFixed(2)}%)</span>`;
+
+    rrText = `<b>RR:</b> ${(rewardMove / riskMove).toFixed(2)}<br>`;
   }
 
   result.innerHTML = `
-    <b>Position size:</b> $${positionValue.toFixed(0)}<br>
-    <b>Margin:</b> $${margin.toFixed(0)}<br>
+    <b>Position size:</b> $${positionValue.toFixed(2)}<br>
+    <b>Margin:</b> $${margin.toFixed(2)}<br>
     ${rrText}
-    <b>Fees:</b> $${fees.toFixed(2)} <span class="small">(entry maker + SL taker)</span>
   `;
 }
 </script>
