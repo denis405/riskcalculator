@@ -21,11 +21,6 @@ body {
   margin: 0 auto;
 }
 
-h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
 .card {
   background: #ffffff;
   border-radius: 14px;
@@ -61,7 +56,8 @@ label {
   opacity: 0.8;
 }
 
-input[type="number"] {
+input[type="number"],
+input[type="range"] {
   width: 100%;
   padding: 10px;
   border-radius: 10px;
@@ -69,20 +65,12 @@ input[type="number"] {
   font-size: 14px;
 }
 
-input[type="range"] {
-  width: 100%;
-}
-
-.small {
-  font-size: 12px;
-  opacity: 0.7;
-}
-
+.small { font-size: 12px; opacity: 0.7; }
 .red { color: #d93025; }
 .green { color: #188038; }
 
-#settings { display: none; }
-#settings.open { display: block; }
+#settings { display:none; }
+#settings.open { display:block; }
 </style>
 </head>
 
@@ -96,8 +84,6 @@ input[type="range"] {
 </div>
 
 <div id="settings" class="card">
-  <div class="small" style="margin-bottom:8px;">Комиссии (доли, не %)</div>
-
   <label>Spot maker</label>
   <input id="spotMaker" value="0.001">
 
@@ -113,70 +99,69 @@ input[type="range"] {
 
 <div class="card">
   <div class="row">
-    <button id="modeSpot" class="active" onclick="setMode('spot')">SPOT</button>
-    <button id="modeFutures" onclick="setMode('futures')">FUTURES</button>
-  </div>
-  <div class="row" style="margin-top:8px">
-    <button id="longBtn" class="active" onclick="setSide('long')">LONG</button>
-    <button id="shortBtn" onclick="setSide('short')">SHORT</button>
+    <button id="btnSpot" class="active" onclick="setMode('spot')">SPOT</button>
+    <button id="btnFutures" onclick="setMode('futures')">FUTURES</button>
   </div>
 </div>
 
 <div class="card">
   <label>Capital (USDT)</label>
-  <input id="capital" type="number" value="1000">
+  <input id="elCapital" type="number" value="1000">
 
   <label>Risk (%)</label>
-  <input id="risk" type="number" value="1" step="0.1">
+  <input id="elRisk" type="number" value="1" step="0.1">
 
   <label>Entry price</label>
-  <input id="entry" type="number">
+  <input id="elEntry" type="number">
 
   <label>Stop Loss</label>
-  <input id="sl" type="number">
+  <input id="elSL" type="number">
   <div id="lossInfo" class="small"></div>
 
   <label>Take Profit</label>
-  <input id="tp" type="number">
+  <input id="elTP" type="number">
   <div id="profitInfo" class="small"></div>
 </div>
 
 <div class="card" id="leverageBox" style="display:none">
   <label>Leverage: <b><span id="levVal">1</span>x</b></label>
-  <input id="leverage" type="range" min="1" max="20" value="1">
+  <input id="elLev" type="range" min="1" max="20" value="1">
 </div>
 
-<div class="card" id="result">
-  <div class="small">Введите данные для расчёта</div>
+<div class="card" id="result" class="small">
+  Введите данные для расчёта
 </div>
 
 </div>
 
 <script>
 let mode = "spot";
-let side = "long";
+
+const elCapital = document.getElementById("elCapital");
+const elRisk = document.getElementById("elRisk");
+const elEntry = document.getElementById("elEntry");
+const elSL = document.getElementById("elSL");
+const elTP = document.getElementById("elTP");
+const elLev = document.getElementById("elLev");
+
+const lossInfo = document.getElementById("lossInfo");
+const profitInfo = document.getElementById("profitInfo");
+const result = document.getElementById("result");
 
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
 
-leverage.addEventListener("input", () => {
-  levVal.textContent = leverage.value;
+elLev.addEventListener("input", () => {
+  document.getElementById("levVal").textContent = elLev.value;
   calculate();
 });
 
 function setMode(m){
   mode = m;
-  modeSpot.classList.toggle("active", m==="spot");
-  modeFutures.classList.toggle("active", m==="futures");
+  btnSpot.classList.toggle("active", m==="spot");
+  btnFutures.classList.toggle("active", m==="futures");
   leverageBox.style.display = m==="futures" ? "block" : "none";
-  calculate();
-}
-
-function setSide(s){
-  side = s;
-  longBtn.classList.toggle("active", s==="long");
-  shortBtn.classList.toggle("active", s==="short");
   calculate();
 }
 
@@ -185,22 +170,22 @@ function toggleSettings(){
 }
 
 function calculate(){
-  const capital = +capital.value;
-  const riskPct = +risk.value / 100;
-  const entry = +entry.value;
-  const sl = +sl.value;
-  const tp = +tp.value;
-  const lev = +leverage.value || 1;
+  const capitalValue = +elCapital.value;
+  const riskPct = +elRisk.value / 100;
+  const entry = +elEntry.value;
+  const sl = +elSL.value;
+  const tp = +elTP.value;
+  const lev = +elLev.value || 1;
 
   lossInfo.innerHTML = "";
   profitInfo.innerHTML = "";
 
-  if (!capital || !riskPct || !entry || !sl) return;
+  if (!capitalValue || !riskPct || !entry || !sl) return;
 
   const riskMove = Math.abs(entry - sl);
   if (riskMove <= 0) return;
 
-  const maxLoss = capital * riskPct;
+  const maxLoss = capitalValue * riskPct;
 
   const maker = +(mode==="spot" ? spotMaker.value : futMaker.value);
   const taker = +(mode==="spot" ? spotTaker.value : futTaker.value);
@@ -213,25 +198,18 @@ function calculate(){
   }
 
   const positionValue = (netRisk / riskMove) * entry;
-  const margin = mode==="spot"
-    ? positionValue
-    : positionValue / lev;
+  const margin = mode==="spot" ? positionValue : positionValue / lev;
 
-  // Loss at SL
-  const lossUsd = netRisk;
-  const lossPct = (lossUsd / capital) * 100;
   lossInfo.innerHTML =
-    `<span class="red">Loss at SL: $${lossUsd.toFixed(2)} (${lossPct.toFixed(2)}%)</span>`;
+    `<span class="red">Loss at SL: $${netRisk.toFixed(2)} (${(netRisk/capitalValue*100).toFixed(2)}%)</span>`;
 
-  // Profit at TP
   let rrText = "";
   if (tp){
     const rewardMove = Math.abs(tp - entry);
     if (rewardMove > 0){
       const profitUsd = (rewardMove / riskMove) * netRisk;
-      const profitPct = (profitUsd / capital) * 100;
       profitInfo.innerHTML =
-        `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${profitPct.toFixed(2)}%)</span>`;
+        `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${(profitUsd/capitalValue*100).toFixed(2)}%)</span>`;
       rrText = `<b>RR:</b> ${(rewardMove / riskMove).toFixed(2)}<br>`;
     }
   }
@@ -240,8 +218,7 @@ function calculate(){
     <b>Position size:</b> $${positionValue.toFixed(0)}<br>
     <b>Margin:</b> $${margin.toFixed(0)}<br>
     ${rrText}
-    <b>Fees:</b> $${fees.toFixed(2)}
-    <span class="small">(entry maker + SL taker)</span>
+    <b>Fees:</b> $${fees.toFixed(2)} <span class="small">(entry maker + SL taker)</span>
   `;
 }
 </script>
