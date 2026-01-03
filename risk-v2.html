@@ -3,11 +3,20 @@
 <head>
 <meta charset="UTF-8">
 
+<!-- iOS: no zoom -->
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <title>Risk Calculator</title>
+
+<!-- PWA -->
 <link rel="manifest" href="manifest.json">
+
+<!-- iOS Home Screen -->
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RiskCalc">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
 <style>
 * { box-sizing: border-box; }
@@ -88,11 +97,13 @@ input[type="range"] {
 
 <div class="wrapper">
 
+<!-- HEADER -->
 <div class="row" style="align-items:center; margin-bottom:12px;">
   <b style="flex:1">Risk Calculator</b>
   <button style="flex:0 0 auto" onclick="toggleSettings()">⚙️</button>
 </div>
 
+<!-- SETTINGS -->
 <div id="settings" class="card">
   <div class="small">Комиссии (доли, не %)</div>
 
@@ -109,6 +120,7 @@ input[type="range"] {
   <input id="futTaker" value="0.001">
 </div>
 
+<!-- TRADE SETUP -->
 <div class="card">
   <div class="small" style="margin-bottom:6px;">Trade setup</div>
 
@@ -123,6 +135,7 @@ input[type="range"] {
   </div>
 </div>
 
+<!-- INPUTS -->
 <div class="card">
   <label>Capital (USDT)</label>
   <input id="elCapital" type="number" value="1000">
@@ -142,11 +155,13 @@ input[type="range"] {
   <div id="profitInfo" class="small"></div>
 </div>
 
+<!-- LEVERAGE -->
 <div class="card" id="leverageBox">
   <label>Leverage: <b><span id="levVal">1</span>x</b></label>
   <input id="elLev" type="range" min="1" max="20" value="1">
 </div>
 
+<!-- RESULT -->
 <div class="card">
   <div class="inner-box" id="result">
     <div class="small">Введите корректные данные</div>
@@ -156,10 +171,12 @@ input[type="range"] {
 </div>
 
 <script>
+/* ===== STATE ===== */
 let mode = "futures";
 let side = "long";
 const el = id => document.getElementById(id);
 
+/* ===== ELEMENTS ===== */
 const elCapital = el("elCapital");
 const elRisk = el("elRisk");
 const elEntry = el("elEntry");
@@ -171,6 +188,7 @@ const lossInfo = el("lossInfo");
 const profitInfo = el("profitInfo");
 const result = el("result");
 
+/* ===== EVENTS ===== */
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
@@ -180,6 +198,7 @@ elLev.addEventListener("input", () => {
   calculate();
 });
 
+/* ===== UI ===== */
 function toggleSettings(){
   el("settings").classList.toggle("open");
 }
@@ -199,6 +218,7 @@ function setSide(s){
   calculate();
 }
 
+/* ===== CALC ===== */
 function calculate(){
   const capital = +elCapital.value;
   const riskPct = +elRisk.value / 100;
@@ -254,6 +274,7 @@ function calculate(){
   `;
 }
 
+/* ===== SERVICE WORKER ===== */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
 }
