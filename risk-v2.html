@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Risk Calculator</title>
+
+<style>
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0f1115;
+  color: #fff;
+  margin: 0;
+  padding: 16px;
+}
+h1 { font-size: 20px; margin-bottom: 12px; }
+
+.card {
+  background: #181b22;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+button, input, select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #232734;
+  color: white;
+  font-size: 14px;
+}
+
+button.active {
+  background: #4f7cff;
+}
+
+.result {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Risk Calculator</h1>
+
+<div class="card">
+  <div class="row">
+    <button id="modeSpot" class="active">SPOT</button>
+    <button id="modeFutures">FUTURES</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="longBtn" class="active">LONG</button>
+    <button id="shortBtn">SHORT</button>
+  </div>
+</div>
+
+<div class="card">
+  <input id="capital" placeholder="Capital (USDT)" type="number">
+  <input id="risk" placeholder="Risk %" type="number" step="0.1">
+  <input id="entry" placeholder="Entry price" type="number">
+  <input id="sl" placeholder="Stop Loss" type="number">
+  <input id="tp" placeholder="Take Profit" type="number">
+  <input id="symbol" placeholder="Symbol (BTCUSDT)" value="BTCUSDT">
+</div>
+
+<div class="card" id="leverageBox" style="display:none">
+  <input id="leverage" placeholder="Leverage" value="1" type="number">
+  <label class="small">
+    <input type="checkbox" id="useFunding" checked> учитывать funding
+  </label>
+</div>
+
+<div class="card">
+  <button onclick="calculate()">Calculate</button>
+</div>
+
+<div class="card result" id="result"></div>
+
+<script>
+let mode = "spot";
+let side = "long";
+
+const FEES = JSON.parse(localStorage.getItem("fees")) || {
+  spot: { maker: 0.001, taker: 0.0018 },
+  futures: { maker: 0.00036, taker: 0.001 }
+};
+
+document.getElementById("modeSpot").onclick = () => setMode("spot");
+document.getElementById("modeFutures").onclick = () => setMode("futures");
+document.getElementById("longBtn").onclick = () => setSide("long");
+document.getElementById("shortBtn").onclick = () => setSide("short");
+
+function setMode(m) {
+  mode = m;
+  document.getElementById("modeSpot").classList.toggle("active", m==="spot");
+  document.getElementById("modeFutures").classList.toggle("active", m==="futures");
+  document.getElementById("leverageBox").style.display = m==="futures" ? "block" : "none";
+}
+
+function setSide(s) {
+  side = s;
+  document.getElementById("longBtn").classList.toggle("active", s==="long");
+  document.getElementById("shortBtn").classList.toggle("active", s==="short");
+}
+
+async function getFunding(symbol) {
+  const url = `https://api.bybit.com/v5/market/funding/history?category=linear&symbol=${symbol}&limit=1`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.result?.list?.[0]?.fundingRate || 0;
+}
+
+async function calculate() {
+  const capital = +capitalInput.value;
+  const riskPct = +risk.value / 100;
+  const entryP = +entry.value;
+  const slP = +sl.value;
+  const lev = +leverage.value || 1;
+  const symbol = symbolInput.value;
+
+  const maxLoss = capital * riskPct;
+  const move = Math.abs(entryP - slP);
+
+  if (move <= 0) {
+    result.innerHTML = "❌ Invalid SL";
+    return;
+  }
+
+  let funding = 0;
+  if (mode === "futures" && useFunding.checked) {
+    funding = (await getFunding(symbol)) * entryP;
+  }
+
+  const feeIn = entryP * FEES[mode].maker;
+  const feeOut = entryP * FEES[mode].taker;
+
+  const netRisk = maxLoss - feeIn - feeOut - funding;
+
+  if (netRisk <= 0) {
+    result.innerHTML = "❌ Fees eat all risk";
+    return;
+  }
+
+  const positionSize = netRisk / move;
+  const margin = mode === "spot"
+    ? positionSize * entryP
+    : (positionSize * entryP) / lev;
+
+  result.innerHTML = `
+  Position size: <b>${positionSize.toFixed(4)}</b><br>
+  Margin required: <b>${margin.toFixed(2)} USDT</b><br>
+  Fees included: ${(feeIn + feeOut + funding).toFixed(2)} USDT<br>
+  <span class="small">SL = taker, funding = ${funding.toFixed(4)}</span>
+  `;
+}
+</script>
+
+</body>
+</html>
