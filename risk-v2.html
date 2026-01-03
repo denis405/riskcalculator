@@ -61,8 +61,7 @@ label {
   opacity: 0.8;
 }
 
-input[type="number"],
-input[type="text"] {
+input[type="number"] {
   width: 100%;
   padding: 10px;
   border-radius: 10px;
@@ -79,13 +78,8 @@ input[type="range"] {
   opacity: 0.7;
 }
 
-#settings {
-  display: none;
-}
-
-#settings.open {
-  display: block;
-}
+#settings { display: none; }
+#settings.open { display: block; }
 </style>
 </head>
 
@@ -137,6 +131,9 @@ input[type="range"] {
 
   <label>Stop Loss</label>
   <input id="sl" type="number">
+
+  <label>Take Profit</label>
+  <input id="tp" type="number">
 </div>
 
 <div class="card" id="leverageBox" style="display:none">
@@ -154,8 +151,9 @@ input[type="range"] {
 let mode = "spot";
 let side = "long";
 
-const inputs = document.querySelectorAll("input");
-inputs.forEach(i => i.addEventListener("input", calculate));
+document.querySelectorAll("input").forEach(i =>
+  i.addEventListener("input", calculate)
+);
 
 leverage.addEventListener("input", () => {
   levVal.textContent = leverage.value;
@@ -182,23 +180,29 @@ function toggleSettings(){
 }
 
 function calculate(){
-  const capital = +capitalInput.value;
-  const riskPct = +risk.value / 100;
-  const entry = +entry.value;
-  const sl = +sl.value;
-  const lev = +leverage.value || 1;
+  const capital = +document.getElementById("capital").value;
+  const riskPct = +document.getElementById("risk").value / 100;
+  const entry = +document.getElementById("entry").value;
+  const sl = +document.getElementById("sl").value;
+  const tp = +document.getElementById("tp").value;
+  const lev = +document.getElementById("leverage").value || 1;
 
   if (!capital || !riskPct || !entry || !sl) return;
 
-  const move = Math.abs(entry - sl);
-  if (move <= 0) return;
+  const riskMove = Math.abs(entry - sl);
+  if (riskMove <= 0) return;
 
   const maxLoss = capital * riskPct;
 
-  const maker = +(mode==="spot" ? spotMaker.value : futMaker.value);
-  const taker = +(mode==="spot" ? spotTaker.value : futTaker.value);
+  const maker = +(mode==="spot"
+    ? document.getElementById("spotMaker").value
+    : document.getElementById("futMaker").value);
 
-  const fees = entry * maker + entry * taker;
+  const taker = +(mode==="spot"
+    ? document.getElementById("spotTaker").value
+    : document.getElementById("futTaker").value);
+
+  const fees = entry * (maker + taker);
   const netRisk = maxLoss - fees;
 
   if (netRisk <= 0){
@@ -206,15 +210,25 @@ function calculate(){
     return;
   }
 
-  const positionSize = netRisk / move;
+  const positionSize = netRisk / riskMove;
   const margin = mode==="spot"
     ? positionSize * entry
     : (positionSize * entry) / lev;
+
+  let rrText = "";
+  if (tp){
+    const rewardMove = Math.abs(tp - entry);
+    if (rewardMove > 0){
+      const rr = rewardMove / riskMove;
+      rrText = `<br><b>RR:</b> ${rr.toFixed(2)}`;
+    }
+  }
 
   result.innerHTML = `
     <b>Position size:</b> ${positionSize.toFixed(4)}<br>
     <b>Margin:</b> ${margin.toFixed(2)} USDT<br>
     <b>Fees:</b> ${fees.toFixed(2)} USDT
+    ${rrText}
   `;
 }
 </script>
