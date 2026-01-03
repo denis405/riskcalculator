@@ -2,14 +2,10 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-
-<!-- ❌ NO ZOOM ON iOS -->
 <meta name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <title>Risk Calculator</title>
-
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 
 <style>
@@ -75,7 +71,7 @@ input[type="range"] {
   padding: 10px;
   border-radius: 10px;
   border: 1px solid #ddd;
-  font-size: 16px; /* 🔒 prevent iOS zoom */
+  font-size: 16px;
 }
 
 .small { font-size: 12px; opacity: 0.7; }
@@ -91,13 +87,11 @@ input[type="range"] {
 
 <div class="wrapper">
 
-<!-- HEADER -->
 <div class="row" style="align-items:center; margin-bottom:12px;">
   <b style="flex:1">Risk Calculator</b>
   <button style="flex:0 0 auto" onclick="toggleSettings()">⚙️</button>
 </div>
 
-<!-- SETTINGS -->
 <div id="settings" class="card">
   <div class="small">Комиссии (доли, не %)</div>
 
@@ -114,7 +108,6 @@ input[type="range"] {
   <input id="futTaker" value="0.001">
 </div>
 
-<!-- TRADE SETUP -->
 <div class="card">
   <div class="small" style="margin-bottom:6px;">Trade setup</div>
 
@@ -129,7 +122,6 @@ input[type="range"] {
   </div>
 </div>
 
-<!-- INPUTS -->
 <div class="card">
   <label>Capital (USDT)</label>
   <input id="elCapital" type="number" value="1000">
@@ -149,13 +141,11 @@ input[type="range"] {
   <div id="profitInfo" class="small"></div>
 </div>
 
-<!-- LEVERAGE -->
 <div class="card" id="leverageBox">
   <label>Leverage: <b><span id="levVal">1</span>x</b></label>
   <input id="elLev" type="range" min="1" max="20" value="1">
 </div>
 
-<!-- RESULT -->
 <div class="card">
   <div class="inner-box" id="result">
     <div class="small">Введите корректные данные</div>
@@ -165,20 +155,10 @@ input[type="range"] {
 </div>
 
 <script>
-/* =======================
-   STATE
-======================= */
 let mode = "futures";
 let side = "long";
-
-/* =======================
-   HELPERS
-======================= */
 const el = id => document.getElementById(id);
 
-/* =======================
-   ELEMENTS
-======================= */
 const elCapital = el("elCapital");
 const elRisk = el("elRisk");
 const elEntry = el("elEntry");
@@ -190,9 +170,6 @@ const lossInfo = el("lossInfo");
 const profitInfo = el("profitInfo");
 const result = el("result");
 
-/* =======================
-   EVENTS
-======================= */
 document.querySelectorAll("input").forEach(i =>
   i.addEventListener("input", calculate)
 );
@@ -202,9 +179,6 @@ elLev.addEventListener("input", () => {
   calculate();
 });
 
-/* =======================
-   UI ACTIONS
-======================= */
 function toggleSettings(){
   el("settings").classList.toggle("open");
 }
@@ -224,9 +198,6 @@ function setSide(s){
   calculate();
 }
 
-/* =======================
-   CALCULATION
-======================= */
 function calculate(){
   const capital = +elCapital.value;
   const riskPct = +elRisk.value / 100;
@@ -252,15 +223,14 @@ function calculate(){
   const maker = +(mode==="spot" ? el("spotMaker").value : el("futMaker").value);
   const taker = +(mode==="spot" ? el("spotTaker").value : el("futTaker").value);
 
-  const fees = entry * (maker + taker);
-  const netRisk = maxLoss - fees;
-  if (netRisk <= 0) return;
-
-  const positionValue = (netRisk / riskMove) * entry;
+  const positionValue = (maxLoss / riskMove) * entry;
   const margin = mode==="spot" ? positionValue : positionValue / lev;
 
+  /* ✅ FIXED FEE CALCULATION */
+  const fees = positionValue * (maker + taker);
+
   lossInfo.innerHTML =
-    `<span class="red">Loss at SL: $${netRisk.toFixed(2)} (${(netRisk/capital*100).toFixed(2)}%)</span>`;
+    `<span class="red">Loss at SL: $${maxLoss.toFixed(2)} (${(riskPct*100).toFixed(2)}%)</span>`;
 
   let rrText = "";
 
@@ -269,7 +239,7 @@ function calculate(){
     ((side==="long" && tp>entry) || (side==="short" && tp<entry))
   ) {
     const rewardMove = Math.abs(tp-entry);
-    const profitUsd = (rewardMove / riskMove) * netRisk;
+    const profitUsd = (rewardMove / riskMove) * maxLoss;
     profitInfo.innerHTML =
       `<span class="green">Profit at TP: $${profitUsd.toFixed(2)} (${(profitUsd/capital*100).toFixed(2)}%)</span>`;
     rrText = `<b>RR:</b> ${(rewardMove/riskMove).toFixed(2)}<br>`;
@@ -284,9 +254,6 @@ function calculate(){
   `;
 }
 
-/* =======================
-   SERVICE WORKER
-======================= */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
 }
